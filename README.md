@@ -1,1 +1,1 @@
-# studious-spoon
+# typographize
