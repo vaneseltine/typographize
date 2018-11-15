@@ -4,7 +4,6 @@ from collections import Counter
 from itertools import chain
 from pathlib import Path
 
-import numpy as np
 from PIL import Image, ImageFont, ImageDraw
 
 INCLUDE_GUIDES = True
@@ -84,7 +83,20 @@ for name, size in fonts:
 # test_image = Image.new(mode="1", size=(9, 16), color=112)
 # draw = ImageDraw.Draw(test_image)
 
+# https://github.com/python-pillow/Pillow/issues/3414#issuecomment-430912358
 
+t = ImageFont.truetype("./font/LiberationMono-Regular.ttf", 16)
+print("t.getmetrics()\t", t.getmetrics())
+print("t.font.ascent\t", t.font.ascent)
+print("t.font.descent\t", t.font.descent)
+print("t.font.height\t", t.font.height)
+print("t.font.x_ppem\t", t.font.x_ppem)
+print("t.font.y_ppem\t", t.font.y_ppem)
+print('t.getsize("A")\t', t.getsize("A"))
+print('t.getsize("AB")\t', t.getsize("AB"))
+print('t.getsize("M")\t', t.getsize("M"))
+print('t.getsize("y")\t', t.getsize("y"))
+print('t.getsize("a")\t', t.getsize("a"))
 # print(*(numpy.histogram(y) for x, y in font.getsize(chr(i)) for i in CODES))
 # for i in CODES:
 #    draw.text(xy=(0, 0), text=chr(i), font=font)
