@@ -43,17 +43,34 @@ def dump_glyphs():
 
 
 def sloppily_binarify(num, font_cfg):
-    test_image = Image.new(
-        mode="1", size=(font_cfg["w"], font_cfg["h"]), color=128
-    )
+    test_image = Image.new(mode="1", size=(font_cfg["w"], font_cfg["h"]), color=128)
     draw = ImageDraw.Draw(test_image)
     draw.text(xy=(0, 0), text=chr(num), font=font_cfg["font"])
     binary_glyph = normalize(image_to_array(test_image))
     return binary_glyph
 
 
-def load_font_cfg(name="LiberationMono-Regular", pt=14):
+def get_font(font, size):
+    attempts = [
+        font,
+        Path(AUXILIARY_FONT_DIR, font),
+        Path(AUXILIARY_FONT_DIR, font + ".ttf"),
+        font.lower(),
+    ]
+    for x in attempts:
+        try:
+            font = ImageFont.truetype(font=str(x), size=size)
+            print(f"Located {x}")
+            return font
+        except OSError:
+            print(f"Could not find {x}")
+            continue
+    raise FileNotFoundError
+
+
+def load_font_cfg(font):
     """
+    name="LiberationMono-Regular", pt=14):
 
     # font_paths = Path("./font").glob("**/*.ttf")
     # font_path = next(font_paths)
@@ -77,11 +94,12 @@ def load_font_cfg(name="LiberationMono-Regular", pt=14):
                 # print(f"Cound not find {name}.")
                 continue
     """
-    font_cfg = {"name": name, "pt": pt}
-    font = ImageFont.truetype(font_cfg["name"], font_cfg["pt"])
-    font_cfg["font"] = font
-    font_cfg["h"] = font.font.height
-    font_cfg["w"] = font.getsize(" ")[0]  # monotype, so arbitary
+    # font_cfg = {"name": name, "pt": pt}
+    font_cfg = {
+        "font": font,
+        "h": font.font.height,
+        "w": font.getsize(" ")[0],  # monotype, so arbitary
+    }
     return font_cfg
     # test_image = Image.new(mode="1", size=(9, 16), color=112)
 
@@ -117,7 +135,9 @@ def blocky_print(arr):
 
 
 def main():
-    font_cfg = load_font_cfg()
+    # font = get_font("LiberationMono-Regular", 14)
+    font = get_font("Consola", 12)
+    font_cfg = load_font_cfg(font)
     # buncha_glyphs = list(
     #    sloppily_binarify(i, font_cfg) for i in ASCII_CODES_ONLY
     # )
@@ -132,11 +152,11 @@ def main():
         matches = {}
         for i in ASCII_CODES_ONLY:
             if (font_cfg["w"], font_cfg["h"]) != sample.size:
-                # print(
-                #    f"bad sizes: "
-                #    f"font {(font_cfg['w'], font_cfg['h'])} "
-                #    f"vs. sample {sample.size}"
-                # )
+                print(
+                    f"bad sizes: "
+                    f"font {(font_cfg['w'], font_cfg['h'])} "
+                    f"vs. sample {sample.size}"
+                )
                 continue
             binary_glyph = sloppily_binarify(i, font_cfg)
             diffs = np.equal(binary_glyph, binary_sample)
