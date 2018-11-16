@@ -11,7 +11,7 @@ ctrl+1/2/3 to switch back to editor.
 """
 
 from collections import Counter
-from itertools import chain
+from itertools import chain, count
 from pathlib import Path
 import sys
 
@@ -26,9 +26,9 @@ FULL_CODES = list(
     chain(range(32, 127), range(161, 768), range(900, 1155), range(1162, 1282))
 )
 ASCII_CODES_ONLY = list(range(32, 127))
-TEST_CODES = [ord(x) for x in "IJKLMNOP"]
 
-CODES = ASCII_CODES_ONLY
+CODES = list(i for i in ASCII_CODES_ONLY if chr(i) != " ")
+CODES = FULL_CODES
 
 
 def dump_glyphs():
@@ -143,7 +143,7 @@ def blocky_print(*arrays):
         print("\n", end="")
 
 
-def split_sample(ary):
+def split_sample(ary, char_height=16, char_width=8, wiggle=0):
     """
     https://docs.scipy.org/doc/numpy-1.10.4/reference/generated/numpy.split.html#numpy.split
     Parameters:
@@ -168,53 +168,110 @@ def split_sample(ary):
         A list of sub-arrays.
     """
     # print((ary - 1) * -1)
-    split_up = np.split(ary, 8, axis=1)
-    for x in (ary, split_up[0]):
-        print(type(x), x.shape, x.dtype)
-    blocky_print(*split_up)
-    for x in split_up:
-        blocky_print(x)
+    overall_height, overall_width = ary.shape
+    finite_indices = create_indices(overall_width, char_width, wiggle)
+    # split_up = np.split(ary, 8, axis=1)
+    # split_indices = list((i + 1) * 8 for i in range(int(overall_width / char_width)))
+    # split_indices = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88]
+    # print([8, 16, 24, 32, 40, 48, 56])
+    # print(*((i + 1) * 8 for i in range(int(64 / 8))))
+
+    split_up = np.array_split(ary, finite_indices, axis=1)
+    return split_up
 
 
-def matching_and_everything(font_cfg):  # where are you black
+def create_indices(overall_width, char_width, wiggle=0):
+    """
+    Ugly but effective.
+    
+    64, 8, 0:   8, 16, 24, 32, 40, 48, 56
+    
+    .. todo:: Wiggle.
+
+    """
+    return list(
+        (i + 1) * char_width for i in range(int(overall_width / char_width) - 1)
+    )
+
+
+def blaze_samples_matching_and_everything(font_cfg):  # where are you black
     sample_input_paths = list(Path("./image/handwritten/").glob("**/*.*"))
     for sample_input_path in list(sample_input_paths):
+        print(sample_input_path)
         sample = Image.open(sample_input_path)
-        binary_sample = normalize(sample)
-        matches = {}
-        for i in CODES:
-            if (font_cfg["w"], font_cfg["h"]) != sample.size:
-                print(
-                    f"bad sizes: "
-                    f"font {(font_cfg['w'], font_cfg['h'])} "
-                    f"vs. sample {sample.size}"
-                )
-                break
-            binary_glyph = sloppily_binarify(num=i, font_cfg=font_cfg)
-            diffs = np.equal(binary_glyph, binary_sample)
-            matches[i] = np.sum(diffs)
+        matches = run_piece_against_fonts(sample, font_cfg)
         if matches:
             winrars = reversed(sorted(matches.items(), key=lambda x: x[1])[-5:])
             winrars = list(
                 (chr(i), score * 1.0 / (font_cfg["w"] * font_cfg["h"]))
                 for i, score in winrars
             )
-            print(sample_input_path, *winrars, sep="\n    ")
+            print(*winrars, sep="\n")
             best_of_the_best = sloppily_binarify(
                 char=(winrars[0][0]), font_cfg=font_cfg
             )
 
-            blocky_print(binary_sample, best_of_the_best)
+            blocky_print(normalize(sample), best_of_the_best)
+
+
+def run_piece_against_fonts(sample, font_cfg):
+    try:
+        binary_sample = normalize(sample)
+    except AttributeError:
+        # print("Probably already normalized")
+        binary_sample = sample
+    matches = {}
+    for i in CODES:
+        binary_glyph = sloppily_binarify(num=i, font_cfg=font_cfg)
+        if binary_glyph.shape != binary_sample.shape:
+            print(
+                f"bad sizes: "
+                f"font {(font_cfg['w'], font_cfg['h'])} "
+                f"vs. sample {binary_sample.size}"
+            )
+            break
+        diffs = np.equal(binary_glyph, binary_sample)
+        matches[i] = np.sum(diffs)
+    return matches
 
 
 def main():
-    # font = get_font("LiberationMono-Regular", 14)
-    font = get_font("consola", 14)
+    """
+
+    .. todo:: 
+
+        Check the top X or have a tolerance, and pick the most-inked character.
+        Maybe even prefer letters.
+        I.e., if the best match is - ~ * T ... prefer T.
+
+        Though adding unicode I'm seeing an improvement on that score.
+
+    """
+    font = get_font("LiberationMono-Regular", 14)
+    # font = get_font("consola", 14)
     font_cfg = load_font_cfg(font)
-    matching_and_everything(font_cfg)
+    blaze_samples_matching_and_everything(font_cfg)
+
     multicol = Image.open(Path("C:/Users/matvan/", "Downloads/different.bmp").resolve())
     separated_multicol = split_sample(normalize(multicol))
+    winning_chars = []
+    for char_sized_piece in separated_multicol:
+        matches = run_piece_against_fonts(char_sized_piece, font_cfg)
+        if matches:
+            winrars = reversed(sorted(matches.items(), key=lambda x: x[1])[-5:])
+            winrars = list(
+                (f'{chr(i)} {(score * 1.0 / (font_cfg["w"] * font_cfg["h"])):2.2f}')
+                for i, score in winrars
+            )
+            print("\n\n", *winrars, sep="    ")
+            best_char = winrars[0][0]
+            winning_chars += [best_char]
+            blocky_print(
+                char_sized_piece, sloppily_binarify(char=best_char, font_cfg=font_cfg)
+            )
+            # blocky_print(char_sized_piece, best_of_the_best)
     blocky_print(normalize(multicol))
+    print("".join(winning_chars))
 
 
 if __name__ == "__main__":
