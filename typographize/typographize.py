@@ -192,12 +192,11 @@ def create_slice_indices(overall_width, char_width, offset=0):
     """
     Not beautiful, but effective.
 
-    All numbers within overall range which, once we remove the offset, ar
-    multiples of the character width.
+    if the offset is 0 or less, start with char_width+offset
+    if it's 1 or greater, start with the offset itself
     """
-    return list(
-        i for i in range(1, overall_width) if ((i - offset) % char_width == 0)
-    )
+    start = (0 + offset, char_width + offset)[offset < 1]
+    return list(range(start, overall_width, char_width))
 
 
 def blaze_samples_matching_and_everything(font_cfg):  # where are you black
