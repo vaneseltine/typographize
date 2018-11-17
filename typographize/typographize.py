@@ -21,14 +21,13 @@ from PIL import Image, ImageFont, ImageDraw
 AUXILIARY_FONT_DIR = Path("./font/")
 
 FULL_CODES = list(
-    # liberation eyeballing only:
     # Further eyeballing with Consolas:
     chain(range(32, 127), range(161, 768), range(900, 1155), range(1162, 1282))
 )
 ASCII_CODES_ONLY = list(range(32, 127))
 
 CODES = list(i for i in ASCII_CODES_ONLY if chr(i) != " ")
-CODES = FULL_CODES
+# CODES = FULL_CODES
 
 
 def dump_glyphs():
@@ -152,7 +151,7 @@ def blocky_print(*arrays):
         print("\n", end="")
 
 
-def split_sample(ary, char_height=16, char_width=8, wiggle=0):
+def split_sample(ary, char_height=16, char_width=8, offset=0):
     """
     https://docs.scipy.org/doc/numpy-1.10.4/reference/generated/numpy.split.html#numpy.split
     Parameters:
@@ -178,7 +177,7 @@ def split_sample(ary, char_height=16, char_width=8, wiggle=0):
     """
     # print((ary - 1) * -1)
     overall_height, overall_width = ary.shape
-    finite_indices = create_indices(overall_width, char_width, wiggle)
+    finite_indices = create_slice_indices(overall_width, char_width, offset)
     # split_up = np.split(ary, 8, axis=1)
     # split_indices = list((i + 1) * 8 for i in range(int(overall_width / char_width)))
     # split_indices = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88]
@@ -189,22 +188,16 @@ def split_sample(ary, char_height=16, char_width=8, wiggle=0):
     return split_up
 
 
-def create_indices(overall_width, char_width, wiggle=0):
+def create_slice_indices(overall_width, char_width, offset=0):
     """
-    Ugly but effective.
+    Not beautiful, but effective.
 
-    64, 8, 0:   8, 16, 24, 32, 40, 48, 56
-
-    .. todo:: Wiggle.
-
+    All numbers within overall range which, once we remove the offset, ar
+    multiples of the character width.
     """
-    start = char_width + wiggle
-    step = char_width
-    end = overall_width - char_width
-    result = [start]
-    while result[-1] < end:
-        result.append(result[-1] + step)
-    return result
+    return list(
+        i for i in range(1, overall_width) if ((i - offset) % char_width == 0)
+    )
 
 
 def blaze_samples_matching_and_everything(font_cfg):  # where are you black
