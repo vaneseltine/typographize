@@ -46,7 +46,9 @@ def dump_glyphs():
 
 def sloppily_binarify(num=None, char=None, font_cfg=None):
     stringed_input = char or chr(num)
-    test_image = Image.new(mode="1", size=(font_cfg["w"], font_cfg["h"]), color=0)
+    test_image = Image.new(
+        mode="1", size=(font_cfg["w"], font_cfg["h"]), color=0
+    )
     draw = ImageDraw.Draw(test_image)
     draw.text(xy=(0, 0), text=stringed_input, font=font_cfg["font"], fill=1)
     binary_glyph = normalize(test_image)
@@ -109,7 +111,14 @@ def load_font_cfg(font):
 
 def image_to_array(img):
     img_data = img.getdata()
-    return np.array(img_data).reshape((img.height, img.width))
+    ary = np.array(img_data)
+    try:
+        reshaped_ary = ary.reshape((img.height, img.width))
+    except ValueError:
+        print(ary, ary.shape, ary.size, dir(ary))
+
+        sys.exit()
+    return reshaped_ary
 
 
 def normalize(img):
@@ -183,15 +192,19 @@ def split_sample(ary, char_height=16, char_width=8, wiggle=0):
 def create_indices(overall_width, char_width, wiggle=0):
     """
     Ugly but effective.
-    
+
     64, 8, 0:   8, 16, 24, 32, 40, 48, 56
-    
+
     .. todo:: Wiggle.
 
     """
-    return list(
-        (i + 1) * char_width for i in range(int(overall_width / char_width) - 1)
-    )
+    start = char_width + wiggle
+    step = char_width
+    end = overall_width - char_width
+    result = [start]
+    while result[-1] < end:
+        result.append(result[-1] + step)
+    return result
 
 
 def blaze_samples_matching_and_everything(font_cfg):  # where are you black
@@ -238,7 +251,7 @@ def run_piece_against_fonts(sample, font_cfg):
 def main():
     """
 
-    .. todo:: 
+    .. todo::
 
         Check the top X or have a tolerance, and pick the most-inked character.
         Maybe even prefer letters.
@@ -252,7 +265,9 @@ def main():
     font_cfg = load_font_cfg(font)
     blaze_samples_matching_and_everything(font_cfg)
 
-    multicol = Image.open(Path("C:/Users/matvan/", "Downloads/different.bmp").resolve())
+    multicol = Image.open(
+        Path("../../downloads/different-blah-74x16.xbm").resolve()
+    )
     separated_multicol = split_sample(normalize(multicol))
     winning_chars = []
     for char_sized_piece in separated_multicol:
@@ -260,14 +275,17 @@ def main():
         if matches:
             winrars = reversed(sorted(matches.items(), key=lambda x: x[1])[-5:])
             winrars = list(
-                (f'{chr(i)} {(score * 1.0 / (font_cfg["w"] * font_cfg["h"])):2.2f}')
+                (
+                    f'{chr(i)} {(score * 1.0 / (font_cfg["w"] * font_cfg["h"])):2.2f}'
+                )
                 for i, score in winrars
             )
             print("\n\n", *winrars, sep="    ")
             best_char = winrars[0][0]
             winning_chars += [best_char]
             blocky_print(
-                char_sized_piece, sloppily_binarify(char=best_char, font_cfg=font_cfg)
+                char_sized_piece,
+                sloppily_binarify(char=best_char, font_cfg=font_cfg),
             )
             # blocky_print(char_sized_piece, best_of_the_best)
     blocky_print(normalize(multicol))
