@@ -190,13 +190,10 @@ def split_sample(ary, char_height=16, char_width=8, offset=0):
 
 def create_slice_indices(overall_width, char_width, offset=0):
     """
-    Not beautiful, but effective.
-
-    if the offset is 0 or less, start with char_width+offset
-    if it's 1 or greater, start with the offset itself
+    .. todo:: There is an unnecessary 0 that could be rid of.
     """
-    start = (0 + offset, char_width + offset)[offset < 1]
-    return list(range(start, overall_width, char_width))
+    offset = offset % char_width
+    return list(range(offset, overall_width, char_width))
 
 
 def blaze_samples_matching_and_everything(font_cfg):  # where are you black
