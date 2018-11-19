@@ -135,9 +135,7 @@ def blaze_samples_matching_and_everything(font):
                 for i, score in winrars
             )
             print(*winrars, sep="\n")
-            best_of_the_best = sloppily_binarify(
-                char=(winrars[0][0]), font=font
-            )
+            best_of_the_best = sloppily_binarify(char=(winrars[0][0]), font=font)
 
             blocky_print(normalize(sample), best_of_the_best)
 
@@ -187,6 +185,8 @@ class TypoImage:
         Print out arrays as blocks to the screen, side-by-side.
 
         .. todo:: There must surely be a better way to map str dict onto binary arr
+        https://stackoverflow.com/questions/16992713/
+
         """
         blocks = {0: "█", 1: " "}  # ◦
         for i in self.normalized:
@@ -236,15 +236,11 @@ class Font:
         self.load_glyphs()
 
     def load_glyphs(self):
-        self.glyphs = {
-            code: self.sloppily_binarify(code) for code in self.codes
-        }
+        self.glyphs = {code: self.sloppily_binarify(code) for code in self.codes}
 
     def sloppily_binarify(self, code):
         glyph = chr(code)
-        test_image = Image.new(
-            mode="1", size=(self.width, self.height), color=1
-        )
+        test_image = Image.new(mode="1", size=(self.width, self.height), color=1)
         draw = ImageDraw.Draw(test_image)
         draw.text(xy=(0, 0), text=glyph, font=self.image_font, fill=0)
         binary_glyph = normalize(test_image)
@@ -325,9 +321,7 @@ def main():
     """
     # font = get_font("LiberationMono-Regular", 14)
     # font = get_font("consola", 14)
-    match_font = Font(
-        name="LiberationMono-Regular", pt=6, codes=ASCII_CODES_ONLY
-    )
+    match_font = Font(name="LiberationMono-Regular", pt=6, codes=ASCII_CODES_ONLY)
     # blaze_samples_matching_and_everything(font)
     # multicol_img_paths = Path("./image/xbm/").glob("*x35.xbm")
     # multicol_img_paths = Path("./image/xbm/").glob("bigf*.xbm")
@@ -339,23 +333,19 @@ def main():
     # img_path = Path("./image/xbm/whiteonblack-75x33.xbm")
     # img_path = Path("./image/xbm/sun.xbm")
     # img_path = Path("./image/xbm/tuxedo.xbm")
-    img_path = Path("./image/xbm/bigface.xbm")
+    # img_path = Path("./image/xbm/bigface.xbm")
+    img_path = Path("./image/wdot.pbm")
     multicol = TypoImage(img_path)
     print("\n", img_path)
     chopped_up = multicol.slicer(match_font.height, match_font.width)
-    grid = (
-        multicol.height // match_font.height,
-        multicol.width // match_font.width,
-    )
+    grid = (multicol.height // match_font.height, multicol.width // match_font.width)
     total_chars = grid[0] * grid[1]
     winning_chars = []
     for row in chopped_up:
         for char_sized_piece in row:
             matches = match_font.match_sample_piece(char_sized_piece)
             if matches:
-                winrars = reversed(
-                    sorted(matches.items(), key=lambda x: x[1])[-5:]
-                )
+                winrars = reversed(sorted(matches.items(), key=lambda x: x[1])[-10:])
                 winrars = list(
                     (
                         chr(i)
@@ -363,19 +353,18 @@ def main():
                     )
                     for i, score in winrars
                 )
-                # print(
-                #    *winrars,
-                #    len([i for i in winning_chars if i is not "\n"]),
-                #    "of",
-                #    f"{total_chars}ish",
-                #    sep="    ",
-                # )
+                print(
+                    *winrars,
+                    len([i for i in winning_chars if i is not "\n"]),
+                    "of",
+                    f"{total_chars}ish",
+                    sep="    ",
+                )
                 best_char = winrars[0][0]
                 winning_chars += [best_char]
-                # blocky_print(
-                #   char_sized_piece,
-                #   sloppily_binarify(char=best_char, font=match_font),
-                # )
+                blocky_print(
+                    char_sized_piece, sloppily_binarify(char=best_char, font=match_font)
+                )
                 # if best_char == "@":
                 #    sys.exit()
         winning_chars += "\n"
