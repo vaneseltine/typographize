@@ -19,8 +19,8 @@ FULL_CODES = list(
 )
 ASCII_CODES_ONLY = list(range(32, 127))
 
-# CODES = list(i for i in ASCII_CODES_ONLY if chr(i) != " ")
-CODES = FULL_CODES
+CODES = list(i for i in ASCII_CODES_ONLY if chr(i) != " ")
+# CODES = ASCII_CODES_ONLY
 
 
 def dump_glyphs():
@@ -135,7 +135,9 @@ def blaze_samples_matching_and_everything(font):
                 for i, score in winrars
             )
             print(*winrars, sep="\n")
-            best_of_the_best = sloppily_binarify(char=(winrars[0][0]), font=font)
+            best_of_the_best = sloppily_binarify(
+                char=(winrars[0][0]), font=font
+            )
 
             blocky_print(normalize(sample), best_of_the_best)
 
@@ -233,14 +235,19 @@ class Font:
         arbitary_test_char = " "
         self.width = self.image_font.getsize(arbitary_test_char)[0]
         self.shape = (self.height, self.width)
+        self.top_score = np.prod(self.shape)
         self.load_glyphs()
 
     def load_glyphs(self):
-        self.glyphs = {code: self.sloppily_binarify(code) for code in self.codes}
+        self.glyphs = {
+            code: self.sloppily_binarify(code) for code in self.codes
+        }
 
     def sloppily_binarify(self, code):
         glyph = chr(code)
-        test_image = Image.new(mode="1", size=(self.width, self.height), color=1)
+        test_image = Image.new(
+            mode="1", size=(self.width, self.height), color=1
+        )
         draw = ImageDraw.Draw(test_image)
         draw.text(xy=(0, 0), text=glyph, font=self.image_font, fill=0)
         binary_glyph = normalize(test_image)
@@ -270,11 +277,7 @@ class Font:
         if np.isnan(total_ink):
             # print("Incomplete block.")
             return []
-        try:
-            binary_sample = normalize(piece)
-        except AttributeError:
-            print("Probably already normalized")
-            binary_sample = piece
+        binary_sample = normalize(piece)
         if self.shape != piece.shape:
             print(
                 (
@@ -282,32 +285,23 @@ class Font:
                     + f"does not match font size {self.shape}"
                 )
             )
-        # print(binary_sample)
+        print(binary_sample)
         matches = {}
         for code, binary_glyph in self.glyphs.items():
             diffs = np.equal(binary_glyph, binary_sample)
+            score = np.sum(diffs) / self.top_score
+            """
+            if score > 0.97:
+                print(binary_sample)
+                print(binary_glyph)
+                print(diffs)
+                print(score)
+            """
             matches[code] = np.sum(diffs)
         return matches
 
 
-def run_piece_against_fonts(sample, font):
-    total_ink = sum(sum(char_sized_piece))
-    if np.isnan(total_ink):
-        # print("Incomplete block.")
-        return []
-    try:
-        binary_sample = normalize(sample)
-    except AttributeError:
-        # print("Probably already normalized")
-        binary_sample = sample
-    matches = {}
-    for code, binary_glyph in CODES.items():
-        diffs = np.equal(binary_glyph, binary_sample)
-        matches[code] = np.sum(diffs)
-    return matches
-
-
-def main():
+def main(invert=False):
     """
 
     .. todo::
@@ -321,7 +315,7 @@ def main():
     """
     # font = get_font("LiberationMono-Regular", 14)
     # font = get_font("consola", 14)
-    match_font = Font(name="LiberationMono-Regular", pt=6, codes=ASCII_CODES_ONLY)
+    match_font = Font(name="LiberationMono-Regular", pt=14, codes=CODES)
     # blaze_samples_matching_and_everything(font)
     # multicol_img_paths = Path("./image/xbm/").glob("*x35.xbm")
     # multicol_img_paths = Path("./image/xbm/").glob("bigf*.xbm")
@@ -331,21 +325,27 @@ def main():
     # img_path = Path("./image/xbm/whiteonblack-80x16.xbm")
     # img_path = Path("./image/xbm/whiteonblack-74x32.xbm")
     # img_path = Path("./image/xbm/whiteonblack-75x33.xbm")
-    # img_path = Path("./image/xbm/sun.xbm")
+    # img_path = Path("./image/xbm/wob_sun.xbm")
     # img_path = Path("./image/xbm/tuxedo.xbm")
-    # img_path = Path("./image/xbm/bigface.xbm")
-    img_path = Path("./image/wdot.pbm")
+    # img_path = Path("./image/xbm/doop.xbm")
+    img_path = Path("./image/dot.pbm")
     multicol = TypoImage(img_path)
     print("\n", img_path)
     chopped_up = multicol.slicer(match_font.height, match_font.width)
-    grid = (multicol.height // match_font.height, multicol.width // match_font.width)
+    grid = (
+        multicol.height // match_font.height,
+        multicol.width // match_font.width,
+    )
     total_chars = grid[0] * grid[1]
     winning_chars = []
     for row in chopped_up:
         for char_sized_piece in row:
+            print(char_sized_piece)
             matches = match_font.match_sample_piece(char_sized_piece)
             if matches:
-                winrars = reversed(sorted(matches.items(), key=lambda x: x[1])[-10:])
+                winrars = reversed(
+                    sorted(matches.items(), key=lambda x: x[1])[-5:]
+                )
                 winrars = list(
                     (
                         chr(i)
@@ -362,14 +362,16 @@ def main():
                 )
                 best_char = winrars[0][0]
                 winning_chars += [best_char]
-                blocky_print(
-                    char_sized_piece, sloppily_binarify(char=best_char, font=match_font)
-                )
+                # blocky_print(
+                #    char_sized_piece,
+                #    sloppily_binarify(char=best_char, font=match_font),
+                # )
                 # if best_char == "@":
                 #    sys.exit()
         winning_chars += "\n"
     # multicol.print()
     print("".join(winning_chars))
+    print(f"Invert: {invert}")
 
 
 if __name__ == "__main__":
